@@ -1,0 +1,179 @@
+<html>
+<head>
+<script>
+var levels = {
+    rows: Array(12),
+    offset: 0,
+    chance: .5,
+    createRow: function() {
+        row = Array(10);
+        for(var i = 0; i < 10; ++i) {
+            row[i] = (Math.random() < this.chance);
+        }
+        return row;
+    },
+    move: function(delta) {
+        if(delta != 0 && this.chance > .00001)
+            this.chance -= delta/100000;
+        delta += this.offset;
+        var push = Math.floor(delta/30);
+        if(push != 0) {
+            delta -= (push * 30);
+            for(var i = this.rows.length - 1; i >= push; --i) {
+                this.rows[i] = this.rows[i-push];
+            }
+            for(var i = 0; i < push; ++i) {
+                this.rows[i] = this.createRow();
+            }
+        }
+        this.offset = delta;
+    },
+    draw: function(context) {
+        for(var i = 1; i < 12; ++i) {
+            var yoff = (i-2) * 30 + this.offset;
+            for( var j = 0; j < 10; ++j) {
+                if(this.rows[i][j])
+                    context.fillRect(j*30, yoff, 30, 4);
+                context.strokeRect(j*30, yoff, 30,30);
+            }
+        }
+    }
+};
+
+keyEnum = { LEFT:0, RIGHT:1, SPACE:2}
+var keyArray = [false, false, false];
+
+var ball = {
+    x: 150,
+    y: 300,
+    vx: 0,
+    vy: 0,
+    r: 5,
+    draw: function(context) {
+        context.beginPath();
+        context.arc(this.x, this.y-this.r, this.r, 0, 2*Math.PI);
+        context.fill();
+        context.stroke();
+    },
+    update: function() {
+        this.vx = ((keyArray[keyEnum.LEFT] * -1) + (keyArray[keyEnum.RIGHT] * 1));
+        this.vy += .01;
+        this.x += this.vx;
+        this.y += this.vy;
+        if(this.x > 305)
+            this.x -= 310;
+        if(this.x < -5)
+            this.x += 310;
+    }
+}
+
+function checkCollide(row) {
+    if(row == undefined)
+        return false;
+    var index = Math.floor((ball.x)/30);
+    var collision = false;
+    if(row[index] != undefined) {
+        collision = row[index];
+        row[index] = false;
+    }
+    return collision;
+}
+
+function onKeyDown(event) {
+    if( event.keyCode == 37 )
+        keyArray[keyEnum.LEFT] = true;
+    if( event.keyCode == 39 )
+        keyArray[keyEnum.RIGHT] = true;
+    if( event.keyCode == 32 )
+        keyArray[keyEnum.SPACE] = true;
+}
+function onKeyUp(event) {
+    if( event.keyCode == 37 )
+        keyArray[keyEnum.LEFT] = false;
+    if( event.keyCode == 39 )
+        keyArray[keyEnum.RIGHT] = false;
+    if( event.keyCode == 32 )
+        keyArray[keyEnum.SPACE] = false;
+}
+
+window.onload = function() {
+    var c = document.getElementById('jumper');
+    var ctx = c.getContext('2d');
+    ctx.font='bold 25px Helvetica';
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    for(var i = 0; i < 12; ++i)
+        levels.rows[i] = levels.createRow();
+
+    var ls = false;
+    if(typeof(Storage) != "undefined")
+        ls = true;
+    var maxheight = 0;
+    if(ls && localStorage.maxheight != undefined)
+        maxheight = localStorage.maxheight;
+    var height = 0;
+    var lose = false;
+    var newmax = false;
+
+    function drawField(rowind) {
+        ctx.clearRect(0,0,300,300);
+        ctx.fillStyle='#422';
+        ctx.fillRect(0, (rowind - 2)*30 + levels.offset, 300, 30);
+        ctx.fillStyle='#2f2';
+        levels.draw(ctx);
+        ctx.fillStyle='#f22';
+        ball.draw(ctx);
+    }
+
+    setInterval(function() {
+        if(lose) {
+        if(height > maxheight)
+            newmax = true;
+        drawField();
+        ctx.fillStyle='rgba(32,32,32,0.5)'
+        ctx.fillRect(0,0,300,300);
+        ctx.fillStyle='#aaa';
+        ctx.font='bold 40px Helvetica';
+        if(newmax) {
+            maxheight = height;
+            ctx.fillText('Alright', 30, 120 + levels.offset);
+            ctx.font='bold 20px Helvetica';
+            ctx.fillText('New max height: ' + maxheight, 40, 150 + levels.offset);
+            if(ls)
+                localStorage.maxheight = maxheight;
+        } else {
+            ctx.fillText('Oh, well', 30, 120 + levels.offset);
+            ctx.font='bold 20px Helvetica';
+            ctx.fillText('Score to beat: ' + maxheight, 40, 150 + levels.offset);
+        }
+        } else {
+        ball.update();
+        var offset = 0;
+        if(ball.y < 100)
+            offset = Math.floor(100 - ball.y);
+        if(height < 200 && (300 - ball.y) > height)
+            height = Math.floor(300 - ball.y);
+        if(ball.y > 300)
+            if(height > 200)
+                lose = true;
+            else
+                ball.vy = -1;
+        levels.move(offset);
+        ball.y += offset;
+        height += offset;
+        var rowind = Math.floor((ball.y - levels.offset)/30) + 2;
+        if((ball.vy > 0) && (((ball.y - levels.offset) % 30) < 10) && checkCollide(levels.rows[rowind]))
+            ball.vy = -1;
+        drawField(rowind);
+        ctx.fillStyle='#aaa';
+        ctx.fillText(height, 10, 280);
+        ctx.strokeText(height, 10, 280);
+        }
+    });
+}
+</script>
+</head>
+<body style="background:#222">
+<canvas id="jumper" width="300" height="300" style="background:#333;border-radius:20px" />
+</body>
+</html>

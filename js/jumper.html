@@ -4,7 +4,7 @@
 var levels = {
     rows: Array(12),
     offset: 0,
-    chance: .5,
+    chance: .3,
     createRow: function() {
         row = Array(10);
         for(var i = 0; i < 10; ++i) {
@@ -13,8 +13,10 @@ var levels = {
         return row;
     },
     move: function(delta) {
-        if(delta != 0 && this.chance > .00001)
+        if(delta != 0 && this.chance > .01) {
             this.chance -= delta/100000;
+            if(this.chance < .01) this.chance = .01;
+        }
         delta += this.offset;
         var push = Math.floor(delta/30);
         if(push != 0) {
@@ -65,7 +67,28 @@ var ball = {
         if(this.x < -5)
             this.x += 310;
     }
-}
+};
+
+var jumptracker = {
+    amt: 20,
+    draw: function(context) {
+        if(this.amt > 10) {
+            context.fillRect(10,10,20,5);
+            context.fillRect(35,10,(this.amt-10)*2, 5);
+        } else {
+            context.fillRect(10,10,this.amt*2, 5);
+        }
+    },
+    jump: function() {
+        if(this.amt >= 10) {
+            this.amt -= 10;
+            ball.vy = -3;
+        }
+    },
+    feed: function() {
+        if(this.amt <= 20) ++(this.amt);
+    }
+};
 
 function checkCollide(row) {
     if(row == undefined)
@@ -77,7 +100,7 @@ function checkCollide(row) {
         row[index] = false;
     }
     return collision;
-}
+};
 
 function onKeyDown(event) {
     if( event.keyCode == 37 )
@@ -86,7 +109,8 @@ function onKeyDown(event) {
         keyArray[keyEnum.RIGHT] = true;
     if( event.keyCode == 32 )
         keyArray[keyEnum.SPACE] = true;
-}
+};
+
 function onKeyUp(event) {
     if( event.keyCode == 37 )
         keyArray[keyEnum.LEFT] = false;
@@ -94,7 +118,7 @@ function onKeyUp(event) {
         keyArray[keyEnum.RIGHT] = false;
     if( event.keyCode == 32 )
         keyArray[keyEnum.SPACE] = false;
-}
+};
 
 window.onload = function() {
     var c = document.getElementById('jumper');
@@ -127,15 +151,14 @@ window.onload = function() {
 
     setInterval(function() {
         if(lose) {
-        if(height > maxheight)
-            newmax = true;
+        newmax |= (height > maxheight*30);
         drawField();
         ctx.fillStyle='rgba(32,32,32,0.5)'
         ctx.fillRect(0,0,300,300);
         ctx.fillStyle='#aaa';
         ctx.font='bold 40px Helvetica';
         if(newmax) {
-            maxheight = height;
+            maxheight = Math.floor(height/3)/10;
             ctx.fillText('Alright', 30, 120 + levels.offset);
             ctx.font='bold 20px Helvetica';
             ctx.fillText('New max height: ' + maxheight, 40, 150 + levels.offset);
@@ -162,18 +185,29 @@ window.onload = function() {
         ball.y += offset;
         height += offset;
         var rowind = Math.floor((ball.y - levels.offset)/30) + 2;
-        if((ball.vy > 0) && (((ball.y - levels.offset) % 30) < 10) && checkCollide(levels.rows[rowind]))
+        if((ball.vy > 0) && (((ball.y - levels.offset) % 30) < 10) && checkCollide(levels.rows[rowind])) {
+            jumptracker.feed();
             ball.vy = -1;
+            if(keyArray[keyEnum.SPACE])
+                jumptracker.jump();
+        }
         drawField(rowind);
         ctx.fillStyle='#aaa';
-        ctx.fillText(height, 10, 280);
-        ctx.strokeText(height, 10, 280);
+        var rheight = Math.floor(height/3)/10;
+        ctx.fillText(rheight, 10, 280);
+        ctx.strokeText(rheight, 10, 280);
+        ctx.fillStyle='#2a2';
+        jumptracker.draw(ctx);
         }
     });
 }
 </script>
 </head>
-<body style="background:#222">
-<canvas id="jumper" width="300" height="300" style="background:#333;border-radius:20px" />
+<body style="background:#222;font-family:helvetica;color:#777">
+<div style="position:relative;width:900px;height:auto;margin:auto">
+<div style="height:260px;width:260px;text-align:right;padding:20px"><h1>Jumper</h1></div>
+<canvas id="jumper" width="300" height="300" style="position:absolute;background:#333;border-radius:20px;left:300px;top:0px" ></canvas>
+<div style="position:absolute;height:260px;width:260px;right:0px;top:0px;padding:20px"><h3>Controls:</h3><p>left, right, space</p></div>
+</div>
 </body>
 </html>

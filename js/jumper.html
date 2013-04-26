@@ -13,13 +13,13 @@ var levels = {
         return row;
     },
     move: function(delta) {
-        if(delta != 0 && this.chance > .01) {
+        if(delta !== 0 && this.chance > .01) {
             this.chance -= delta/100000;
             if(this.chance < .01) this.chance = .01;
         }
         delta += this.offset;
         var push = Math.floor(delta/30);
-        if(push != 0) {
+        if(push !== 0) {
             delta -= (push * 30);
             for(var i = this.rows.length - 1; i >= push; --i) {
                 this.rows[i] = this.rows[i-push];
@@ -42,8 +42,36 @@ var levels = {
     }
 };
 
-keyEnum = { LEFT:0, RIGHT:1, SPACE:2}
-var keyArray = [false, false, false];
+function keyElem(c) {
+    this.code = c;
+    this.active = false;
+    this.elem = undefined;
+    this.oldback = undefined;
+    this.assign = function(name) {
+            this.elem = document.getElementById(name);
+            this.oldback = this.elem.style.background;
+            var self = this;
+            function act() { self.activate(true); }
+            function dact() { self.activate(false); }
+            this.elem.addEventListener('touchstart', act);
+            this.elem.addEventListener('touchend', dact);
+            this.elem.addEventListener('mousedown', act);
+            this.elem.addEventListener('mouseup', dact);
+    };
+    this.activate = function(on) {
+        this.active = on;
+        if(on)
+            this.elem.style.background = '#aaa';
+        else
+            this.elem.style.background = this.oldback;
+    };
+}
+
+var keyArray = {
+    left: new keyElem(37),
+    right: new keyElem(39),
+    space: new keyElem(32)
+};
 
 var ball = {
     x: 150,
@@ -58,7 +86,7 @@ var ball = {
         context.stroke();
     },
     update: function() {
-        this.vx = ((keyArray[keyEnum.LEFT] * -1) + (keyArray[keyEnum.RIGHT] * 1));
+        this.vx = ((keyArray.left.active * -1) + (keyArray.right.active * 1));
         this.vy += .01;
         this.x += this.vx;
         this.y += this.vy;
@@ -91,38 +119,41 @@ var jumptracker = {
 };
 
 function checkCollide(row) {
-    if(row == undefined)
+    if(row === undefined)
         return false;
     var index = Math.floor((ball.x)/30);
     var collision = false;
-    if(row[index] != undefined) {
+    if(row[index] !== undefined) {
         collision = row[index];
         row[index] = false;
     }
     return collision;
-};
+}
 
 function onKeyDown(event) {
-    if( event.keyCode == 37 )
-        keyArray[keyEnum.LEFT] = true;
-    if( event.keyCode == 39 )
-        keyArray[keyEnum.RIGHT] = true;
-    if( event.keyCode == 32 )
-        keyArray[keyEnum.SPACE] = true;
-};
+    if( event.keyCode ==  keyArray.left.code)
+        keyArray.left.activate(true);
+    if( event.keyCode == keyArray.right.code)
+        keyArray.right.activate(true);
+    if( event.keyCode == keyArray.space.code)
+        keyArray.space.activate(true);
+}
 
 function onKeyUp(event) {
-    if( event.keyCode == 37 )
-        keyArray[keyEnum.LEFT] = false;
-    if( event.keyCode == 39 )
-        keyArray[keyEnum.RIGHT] = false;
-    if( event.keyCode == 32 )
-        keyArray[keyEnum.SPACE] = false;
-};
+    if( event.keyCode ==  keyArray.left.code)
+        keyArray.left.activate(false);
+    if( event.keyCode == keyArray.right.code)
+        keyArray.right.activate(false);
+    if( event.keyCode == keyArray.space.code)
+        keyArray.space.activate(false);
+}
 
 window.onload = function() {
     var c = document.getElementById('jumper');
     var ctx = c.getContext('2d');
+    keyArray.left.assign('left');
+    keyArray.right.assign('right');
+    keyArray.space.assign('space');
     ctx.font='bold 25px Helvetica';
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -130,10 +161,10 @@ window.onload = function() {
         levels.rows[i] = levels.createRow();
 
     var ls = false;
-    if(typeof(Storage) != "undefined")
+    if(typeof(Storage) !== "undefined")
         ls = true;
     var maxheight = 0;
-    if(ls && localStorage.maxheight != undefined)
+    if(ls && localStorage.maxheight !== undefined)
         maxheight = localStorage.maxheight;
     var height = 0;
     var lose = false;
@@ -153,7 +184,7 @@ window.onload = function() {
         if(lose) {
         newmax |= (height > maxheight*30);
         drawField();
-        ctx.fillStyle='rgba(32,32,32,0.5)'
+        ctx.fillStyle='rgba(32,32,32,0.5)';
         ctx.fillRect(0,0,300,300);
         ctx.fillStyle='#aaa';
         ctx.font='bold 40px Helvetica';
@@ -180,7 +211,7 @@ window.onload = function() {
             if(height > 200)
                 lose = true;
             else
-                ball.vy = -1;
+                ball.vy = -(1 + 2 * keyArray.space.active);
         levels.move(offset);
         ball.y += offset;
         height += offset;
@@ -188,7 +219,7 @@ window.onload = function() {
         if((ball.vy > 0) && (((ball.y - levels.offset) % 30) < 10) && checkCollide(levels.rows[rowind])) {
             jumptracker.feed();
             ball.vy = -1;
-            if(keyArray[keyEnum.SPACE])
+            if(keyArray.space.active)
                 jumptracker.jump();
         }
         drawField(rowind);
@@ -200,14 +231,29 @@ window.onload = function() {
         jumptracker.draw(ctx);
         }
     });
-}
+};
 </script>
+<style type="text/css">
+span.button {
+    display:inline-block;
+    text-align:center;
+    width:90px;
+    -webkit-user-select:none;
+    -moz-user-select:none;
+    user-select:none;
+}
+</style>
 </head>
 <body style="background:#222;font-family:helvetica;color:#777">
-<div style="position:relative;width:600px;height:auto;margin:auto">
+<div style="position:relative;width:450px;height:auto;margin:auto">
 <div style="height:260px;width:110px;text-align:right;padding:20px"><h1>Jumper</h1></div>
 <canvas id="jumper" width="300" height="300" style="position:absolute;background:#333;border-radius:20px;left:150px;top:0px" ></canvas>
-<div style="position:absolute;height:260px;width:110px;right:0px;top:0px;padding:20px"><h3>Controls:</h3><p>left, right, space</p></div>
+<div style="height:30px;width:450px;right:0px;bottom:0px">
+    <span style="font-size:20px;font-weight:bold;width:130px;display:inline-block;text-align:right;padding-right:20px;">Controls:</span>
+    <span id="left" class="button">left</span>
+    <span id="space" class="button"> space</span>
+    <span id="right" class="button"> right</span>
+</div>
 </div>
 </body>
 </html>

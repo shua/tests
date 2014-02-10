@@ -1,0 +1,169 @@
+<head>
+<script type="text/javascript">
+function Area(x,y,w,h,p) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.parent = p;
+    this.wall = 0;
+    this.door = 0;
+    this.doors = { top:-1, bottom:-1, left:-1, right:-1 };
+    this.splitv = true; // split is vertical
+    if (this.w < this.h) {
+        this.splitv = false;
+    }
+    this.closet = true;
+
+    this.subdivide = subdivide;
+    function subdivide() {
+        if(h==1 || w==1) return;
+        if (this.wall > 0) {
+            this.child1.subdivide();
+            this.child2.subdivide();
+            return;
+        }
+        
+        // dimensions for placing wall/door
+        var walld = h+1;
+        var doord = w+1;
+        if (this.splitv) {
+            walld = w+1;
+            doord = h+1;
+        }
+        // walls will more likely be placed in the middle of the room.
+        var rand = Math.random() - 0.5; // center around 0
+        rand = rand * rand * rand * 4; // cube and multiply by 4 to get it back in bounds (-.5,.5)
+        rand = rand + 0.5 // move it back to (0,1)
+        // if you want uniform randomness, then don't do previous calculations to rand
+        rand = Math.floor(rand * (Math.floor(walld/2) - 1)); // -1 because we can't have a wall at the end of the room
+        this.wall = (rand * 2) + 1; // wall is every odd
+        rand = Math.floor(Math.random() * Math.floor(doord/2)); // doors can be at the end, though
+        this.door = rand * 2; // and doors are every even, so no collisions
+        if (this.splitv) {
+            this.child1 = new Area(this.x, this.y, this.wall, this.h, this);
+            this.child2 = new Area(this.x+this.wall+1, this.y, this.w-this.wall-1, this.h, this);
+        } else {
+            this.child1 = new Area(this.x, this.y, this.w, this.wall, this);
+            this.child2 = new Area(this.x, this.y+this.wall+1, this.w, this.h-this.wall-1, this);
+        }
+
+        // can't figure out a better way to do paths, so just store all doors leading into room
+        this.child1.doors.top = this.doors.top;
+        this.child1.doors.left = this.doors.left;
+        if(this.splitv) {
+            this.child1.doors.bottom = this.doors.bottom;
+            this.child1.doors.right = this.door;
+        } else {
+            this.child1.doors.right = this.doors.right;
+            this.child1.doors.bottom = this.door;
+        }
+        var xdif = this.x - this.child2.x;
+        var ydif = this.y - this.child2.y;
+        this.child2.doors.bottom = xdif + this.doors.bottom;
+        this.child2.doors.right = ydif + this.doors.right;
+        if(this.splitv) {
+            this.child2.doors.top = xdif + this.doors.top;
+            this.child2.doors.left = this.door;
+        } else {
+            this.child2.doors.left = ydif + this.doors.left;
+            this.child2.doors.top = this.door;
+        }
+    }
+
+    // generic update function. does something (ufun) to itself, then to the children
+    this.update = update;
+    function update(ufun) {
+        ufun(this);
+        if(this.wall > 0) {
+            this.child1.update(ufun);
+            this.child2.update(ufun);
+        }
+    }
+}
+
+/* Globals Vars */
+cVars = { cx:0, width:0, height:0 };
+MainArea = new Area(1,1,63,63,0);
+/* end */
+
+// puts a wall wherever you want it
+function drawWall(cx, x, y) {
+    cx.fillRect(x+1, y+1, 8,8);
+    cx.strokeRect(x+1,y+1,8,8);
+}
+
+function clear(cx) {
+    cx.fillStyle = 'white';
+    cx.fillRect(0,0, cVars.width, cVars.height);
+}
+
+function draw(cx) {
+    cx.strokeStyle = "#112222";
+    cx.fillStyle = "#99bbbb";
+    for(var i=0; i<65; i++) {
+        drawWall(cx,i*10,0);
+        drawWall(cx,0,i*10);
+        drawWall(cx,i*10,640);
+        drawWall(cx,640,i*10);
+    }
+
+    function areaDraw(area) {
+        if (area.wall == 0) return;
+        if(area.splitv) {
+            for(var i=0; i<area.h; i++) {
+                if(i != area.door) {
+                    drawWall(cx,(area.x + area.wall)*10,(area.y + i)*10);
+                }
+            }
+        } else {
+            for(var i=0; i<area.w; i++) {
+                if(i != area.door) {
+                    drawWall(cx,(area.x + i)*10,(area.y + area.wall)*10);
+                }
+            }
+        }
+    }
+
+    function fillCloset(area) {
+        if(area.wall > 0) return;
+        if(area.closet) {
+            cx.fillRect(area.x*10, area.y*10, area.w*10, area.h*10);
+        }
+    }
+
+    MainArea.update(areaDraw);
+    cx.fillStyle = "#888888";
+    MainArea.update(fillCloset);
+}
+
+function load() {
+    var c = document.getElementById("room");
+    var cx = c.getContext("2d");
+    cVars.cx = cx;
+    cVars.width = c.width;
+    cVars.height = c.height;
+    c.style.height = '650px';
+    c.style.width = '650px';
+
+    for(var i=0; i<7; i++) MainArea.subdivide(); // subdivides i times
+
+    function areaClosetCheck(area) {
+        var doors = 0;
+        if(area.doors.top >= 0 && area.doors.top < area.w) doors++;
+        if(area.doors.bottom >= 0 && area.doors.bottom < area.w) doors++;
+        if(area.doors.left >= 0 && area.doors.left <  area.h) doors++;
+        if(area.doors.right >= 0 && area.doors.right < area.h) doors++;
+        if(doors > 1) area.closet = false;
+    }
+
+    MainArea.update(areaClosetCheck);
+    draw(cx);
+}
+
+window.onload = load;
+</script>
+</head>
+<body>
+<canvas id="room" width=650 height=650></canvas>
+</body>

@@ -164,8 +164,12 @@ window.onload = function() {
     if(typeof(Storage) !== "undefined")
         ls = true;
     var maxheight = 0;
-    if(ls && localStorage.maxheight !== undefined)
-        maxheight = localStorage.maxheight;
+	try {
+	    if(ls && localStorage.maxheight !== undefined)
+	        maxheight = localStorage.maxheight;
+	} catch(e) {
+		console.log("localStorage probably not allowed, so you won't be able to save your high scores")
+	}
     var height = 0;
     var lose = false;
     var newmax = false;

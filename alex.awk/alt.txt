@@ -1,0 +1,16 @@
+men: people, persons, folks
+women: people, persons, folks
+man: person, creature
+woman: person, creature
+boys: children, spawn, pupae
+girls: children, spawn, pupae
+his: their, theirs, its
+him: it
+her: their, its, it
+hers: theirs, its
+he: it
+she: it
+bitch: pushover, bourgeoisie, slut
+god: jesus, allah, Richard Dawkins, myself
+logic:
+

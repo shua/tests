@@ -4,7 +4,7 @@
 
 // usage
 //	athru(x, compare_function) {
-//	dala(y_1) // <-- dalathrough
+//	dala(y_1) // <-- fallthrough
 //	dala(y_2)
 //		...
 //		break; // <-- works as expected
@@ -24,7 +24,7 @@
 // - 'cheal' can only be used after all the other 'dala's
 //  
 // similarities to normal switch/case/default:
-// - dala/case without 'break' will dalathrough
+// - dala/case without 'break' will fallthrough
 // - athru/switch blocks can be nested
 //
 
